@@ -1,19 +1,34 @@
 {
-  "name": "subsis",
+  "name": "subcription",
   "version": "1.0.0",
   "main": "index.js",
   "repository": "",
   "author": "Aryan <aryankumar877@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "deploy": "hardhat deploy-zksync --script deployFactoryAccount.ts",
-    "deploy-sub": "hardhat deploy-zksync --script deploySubscriptionFactory.ts"
+    "deploy:aa-factory": "hardhat deploy-zksync --script deploy-aa-factory.ts",
+    "deploy:subscription-manager": "hardhat deploy-zksync --script deploy-subscription-manager.ts",
+    "deploy:subscription-account": "hardhat deploy-zksync --script deploy-subscription-account.ts",
+    "deploy:subscription-account-direct": "hardhat deploy-zksync --script deploy-subscription-account-direct.ts",
+    "test:set-spending-limit": "hardhat deploy-zksync --script test-set-spending-limit.ts",
+    "test:check-subscription": "hardhat deploy-zksync --script test-check-subscription.ts",
+    "test:subscribe": "hardhat deploy-zksync --script test-subscribe.ts",
+    "test:execute-transaction": "hardhat deploy-zksync --script test-execute-transaction.ts",
+    "test:withdraw": "hardhat deploy-zksync --script test-withdraw.ts",
+    "test:price": "hardhat deploy-zksync --script test-price",
+    "test:unsubscribe": "hardhat deploy-zksync --script test-unsubscribe.ts",
+    "test:subscription-owner": "hardhat deploy-zksync --script test-subscription-owner.ts",
+    "test:create-plan": "hardhat deploy-zksync --script test-create-plan.ts",
+    "test:subscription-payment": "hardhat deploy-zksync --script test-subscription-payment.ts",
+    "deploy-all": "yarn deploy:aa-factory && yarn deploy:subscription-manager && yarn deploy:subscription-account",
+    "test-all": "yarn test:set-spending-limit && yarn test:check-subscription && yarn test:subscribe && yarn test:execute-transaction && yarn test:unsubscribe",
+    "deploy-and-test": "yarn deploy-all && yarn test-all"
   },
   "devDependencies": {
     "@matterlabs/hardhat-zksync-chai-matchers": "^0.1.2",
     "@matterlabs/hardhat-zksync-deploy": "^0.6.1",
     "@matterlabs/hardhat-zksync-solc": "^0.4.0",
-    "@matterlabs/hardhat-zksync-verify": "^0.1.1",
+    "@matterlabs/hardhat-zksync-verify": "^1.4.3",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.5",
     "@nomiclabs/hardhat-etherscan": "^3.1.5",
     "@types/chai": "^4.3.4",
@@ -30,6 +45,6 @@
   "dependencies": {
     "@chainlink/contracts": "^1.1.0",
     "@matterlabs/zksync-contracts": "^0.6.1",
-    "@openzeppelin/contracts": "^4.8.1"
+    "@openzeppelin/contracts": "^4.1.0"
   }
 }

@@ -1,0 +1,113 @@
+13:14:56  INFO Creating fork from "https://sepolia.era.zksync.dev:443" L1 block: L1BatchNumber(9062) L2 block: 2517749 with timestamp 1716556490, L1 gas price 8098233651 and protocol version: Some(Version24)
+13:14:56  INFO Starting network with chain id: L2ChainId(260)
+13:14:56  INFO 
+13:14:56  INFO Rich Accounts
+13:14:56  INFO =============
+13:15:04  INFO Account #0: 0xBC989fDe9e54cAd2aB4392Af6dF60f04873A033A ([36m1_000_000_000_000 ETH[0m)
+13:15:04  INFO Private Key: 0x3d3cbc973389cb26f657686445bcc75662b415b656078503592ac8c1abb8810e
+13:15:04  INFO Mnemonic: [38;2;128;128;128mmass wild lava ripple clog cabbage witness shell unable tribe rubber enter[0m
+13:15:04  INFO 
+13:15:05  INFO Account #1: 0x55bE1B079b53962746B2e86d12f158a41DF294A6 ([36m1_000_000_000_000 ETH[0m)
+13:15:05  INFO Private Key: 0x509ca2e9e6acf0ba086477910950125e698d4ea70fa6f63e000c5a22bda9361c
+13:15:05  INFO Mnemonic: [38;2;128;128;128mcrumble clutch mammal lecture lazy broken nominee visit gentle gather gym erupt[0m
+13:15:05  INFO 
+13:15:05  INFO Account #2: 0xCE9e6063674DC585F6F3c7eaBe82B9936143Ba6C ([36m1_000_000_000_000 ETH[0m)
+13:15:05  INFO Private Key: 0x71781d3a358e7a65150e894264ccc594993fbc0ea12d69508a340bc1d4f5bfbc
+13:15:05  INFO Mnemonic: [38;2;128;128;128millegal okay stereo tattoo between alien road nuclear blind wolf champion regular[0m
+13:15:05  INFO 
+13:15:06  INFO Account #3: 0xd986b0cB0D1Ad4CCCF0C4947554003fC0Be548E9 ([36m1_000_000_000_000 ETH[0m)
+13:15:06  INFO Private Key: 0x379d31d4a7031ead87397f332aab69ef5cd843ba3898249ca1046633c0c7eefe
+13:15:06  INFO Mnemonic: [38;2;128;128;128mpoint donor practice wear alien abandon frozen glow they practice raven shiver[0m
+13:15:06  INFO 
+13:15:07  INFO Account #4: 0x87d6ab9fE5Adef46228fB490810f0F5CB16D6d04 ([36m1_000_000_000_000 ETH[0m)
+13:15:07  INFO Private Key: 0x105de4e75fe465d075e1daae5647a02e3aad54b8d23cf1f70ba382b9f9bee839
+13:15:07  INFO Mnemonic: [38;2;128;128;128mgiraffe organ club limb install nest journey client chunk settle slush copy[0m
+13:15:07  INFO 
+13:15:07  INFO Account #5: 0x78cAD996530109838eb016619f5931a03250489A ([36m1_000_000_000_000 ETH[0m)
+13:15:07  INFO Private Key: 0x7becc4a46e0c3b512d380ca73a4c868f790d1055a7698f38fb3ca2b2ac97efbb
+13:15:07  INFO Mnemonic: [38;2;128;128;128mawful organ version habit giraffe amused wire table begin gym pistol clean[0m
+13:15:07  INFO 
+13:15:08  INFO Account #6: 0xc981b213603171963F81C687B9fC880d33CaeD16 ([36m1_000_000_000_000 ETH[0m)
+13:15:08  INFO Private Key: 0xe0415469c10f3b1142ce0262497fe5c7a0795f0cbfd466a6bfa31968d0f70841
+13:15:08  INFO Mnemonic: [38;2;128;128;128mexotic someone fall kitten salute nerve chimney enlist pair display over inside[0m
+13:15:08  INFO 
+13:15:08  INFO Account #7: 0x42F3dc38Da81e984B92A95CBdAAA5fA2bd5cb1Ba ([36m1_000_000_000_000 ETH[0m)
+13:15:08  INFO Private Key: 0x4d91647d0a8429ac4433c83254fb9625332693c848e578062fe96362f32bfe91
+13:15:08  INFO Mnemonic: [38;2;128;128;128mcatch tragic rib twelve buffalo also gorilla toward cost enforce artefact slab[0m
+13:15:08  INFO 
+13:15:09  INFO Account #8: 0x64F47EeD3dC749d13e49291d46Ea8378755fB6DF ([36m1_000_000_000_000 ETH[0m)
+13:15:09  INFO Private Key: 0x41c9f9518aa07b50cb1c0cc160d45547f57638dd824a8d85b5eb3bf99ed2bdeb
+13:15:09  INFO Mnemonic: [38;2;128;128;128marrange price fragile dinner device general vital excite penalty monkey major faculty[0m
+13:15:09  INFO 
+13:15:10  INFO Account #9: 0xe2b8Cb53a43a56d4d2AB6131C81Bd76B86D3AFe5 ([36m1_000_000_000_000 ETH[0m)
+13:15:10  INFO Private Key: 0xb0680d66303a0163a19294f1ef8c95cd69a9d7902a4aca99c05f3e134e68a11a
+13:15:10  INFO Mnemonic: [38;2;128;128;128mincrease pulp sing wood guilt cement satoshi tiny forum nuclear sudden thank[0m
+13:15:10  INFO 
+13:15:10  INFO ========================================
+13:15:10  INFO   Node is ready at 127.0.0.1:8011
+13:15:10  INFO ========================================
+13:16:35  INFO 
+13:16:35  INFO Validating [1m0xa85fd16926d5614285e4e53ba12fc6bb5ff25a4afab96d2535580aa3022c696c[0m
+13:16:35  INFO Executing [1m0xa85fd16926d5614285e4e53ba12fc6bb5ff25a4afab96d2535580aa3022c696c[0m
+13:16:36  INFO ┌─────────────────────────┐
+13:16:36  INFO │   TRANSACTION SUMMARY   │
+13:16:36  INFO └─────────────────────────┘
+13:16:36  INFO Transaction: [32mSUCCESS[0m
+13:16:36  INFO Initiator: 0xbc989fde9e54cad2ab4392af6df60f04873a033a
+13:16:36  INFO Payer: 0xbc989fde9e54cad2ab4392af6df60f04873a033a
+13:16:36  INFO Gas - Limit: 1_461_306_128 | Used: 376_092_456 | Refunded: 1_085_213_672
+13:16:36  INFO Use --show-gas-details flag or call config_setShowGasDetails to display more info
+13:16:36  INFO 
+13:16:36  INFO ==== Console logs: 
+13:16:36  INFO 
+13:16:36  INFO ==== [1m24 call traces. [0m Use --show-calls flag or call config_setShowCalls to display more info.
+13:16:36  INFO 
+13:16:36  INFO ==== [1m7 events[0m
+13:16:36  INFO [34mEthToken System Contract                  [0m
+13:16:36  INFO [38;2;128;128;128m  Topics:[0m
+13:16:36  INFO     0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+13:16:36  INFO     0x000000000000000000000000bc989fde9e54cad2ab4392af6df60f04873a033a
+13:16:36  INFO     0x0000000000000000000000000000000000000000000000000000000000008001
+13:16:36  INFO [38;2;128;128;128m  Data (Hex):[0m 0x0000000000000000000000000000000000000000000000000081ca4128b04400
+13:16:36  INFO 
+13:16:36  INFO [34mEthToken System Contract                  [0m
+13:16:36  INFO [38;2;128;128;128m  Topics:[0m
+13:16:36  INFO     0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+13:16:36  INFO     0x0000000000000000000000000000000000000000000000000000000000008001
+13:16:36  INFO     0x000000000000000000000000bc989fde9e54cad2ab4392af6df60f04873a033a
+13:16:36  INFO [38;2;128;128;128m  Data (Hex):[0m 0x0000000000000000000000000000000000000000000000000019f5403b567400
+13:16:36  INFO 
+13:16:36  INFO [34mL1 messenger                              [0m
+13:16:36  INFO [38;2;128;128;128m  Topics:[0m
+13:16:36  INFO     0x27fe8c0b49f49507b9d4fe5968c9f49edfe5c9df277d433a07a0717ede97638d
+13:16:36  INFO [38;2;128;128;128m  Data (Hex):[0m 0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000006a900000000...
+13:16:36  INFO 
+13:16:36  INFO [34mL1 messenger                              [0m
+13:16:36  INFO [38;2;128;128;128m  Topics:[0m
+13:16:36  INFO     0x3a36e47291f4201faf137fab081d92295bce2d53be2c6ca68ba82c7faa9ce241
+13:16:36  INFO     0x000000000000000000000000000000000000000000000000000000000000800e
+13:16:36  INFO     0x290241807d3da7346b2c8109ce2bb410125585080ef102773b6e29e2e0d8a523
+13:16:36  INFO [38;2;128;128;128m  Data (Hex):[0m 0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000008df20b2d00000000000000000000146b0000213d000000000101043b00000001022001900000...
+13:16:36  INFO 
+13:16:36  INFO [34mKnown code storage                        [0m
+13:16:36  INFO [38;2;128;128;128m  Topics:[0m
+13:16:36  INFO     0xc94722ff13eacf53547c4741dab5228353a05938ffcdd5d4a2d533ae0e618287
+13:16:36  INFO     0x0100069184c127b3eae7fb646b8b6bdb465741dce4b7879895d37ef20abcad27
+13:16:36  INFO     0x0000000000000000000000000000000000000000000000000000000000000000
+13:16:36  INFO [38;2;128;128;128m  Data: EMPTY[0m
+13:16:36  INFO 
+13:16:36  INFO [34mL2 deployer                               [0m
+13:16:36  INFO [38;2;128;128;128m  Topics:[0m
+13:16:36  INFO     0x290afdae231a3fc0bbae8b1af63698b0a1d79b21ad17df0342dfb952fe74f8e5
+13:16:36  INFO     0x000000000000000000000000bc989fde9e54cad2ab4392af6df60f04873a033a
+13:16:36  INFO     0x01000057a4fa303405d6549c546058301ce6b36de43c196b4e09c2a749f77924
+13:16:36  INFO     0x0000000000000000000000009c1a3d7c98dbf89c7f5d167f2219c29c2fe775a7
+13:16:36  INFO [38;2;128;128;128m  Data: EMPTY[0m
+13:16:36  INFO 
+13:16:36  INFO [34mEthToken System Contract                  [0m
+13:16:36  INFO [38;2;128;128;128m  Topics:[0m
+13:16:36  INFO     0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+13:16:36  INFO     0x0000000000000000000000000000000000000000000000000000000000008001
+13:16:36  INFO     0x000000000000000000000000bc989fde9e54cad2ab4392af6df60f04873a033a
+13:16:36  INFO [38;2;128;128;128m  Data (Hex):[0m 0x000000000000000000000000000000000000000000000000004d1bebf47fc800
+13:16:36  INFO 
