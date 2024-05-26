@@ -1,7 +1,6 @@
 import { Wallet, Provider, Contract } from "zksync-web3";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import * as dotenv from "dotenv";
-import * as fs from "fs";
 import { ethers } from "ethers";
 
 export default async function (hre: HardhatRuntimeEnvironment) {
@@ -21,23 +20,18 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     owner
   );
 
-  const planName = "Basic Plan";
-  const feeUSD = ethers.utils.parseUnits("10", 8); // $10 fee (with 8 decimal places)
+  // Get the total number of plans
+  const planCount = await subscriptionManager.planCount();
+  console.log(`Total number of plans: ${planCount.toString()}`);
 
-  const tx = await subscriptionManager.createPlan(planName, feeUSD);
-  await tx.wait();
+  for (let i = 0; i < planCount; i++) {
+    const plan = await subscriptionManager.plans(i);
+    const feeUSD = ethers.utils.formatUnits(plan.feeUSD, 8); // Format fee to USD with 8 decimal places
 
-  const planId = (await subscriptionManager.planCount()).sub(1).toString();
-
-  // Store the new plan ID in the .env file
-  const envConfig = dotenv.parse(fs.readFileSync(".env"));
-  envConfig.PLAN_ID = planId;
-  fs.writeFileSync(
-    ".env",
-    Object.entries(envConfig)
-      .map(([key, val]) => `${key}=${val}`)
-      .join("\n")
-  );
-
-  console.log(`Subscription plan created with ID: ${planId}`);
+    console.log(`Plan ID: ${i}`);
+    console.log(`  Name: ${plan.name}`);
+    console.log(`  Fee USD: $${feeUSD}`);
+    console.log(`  Exists: ${plan.exists}`);
+    console.log("");
+  }
 }

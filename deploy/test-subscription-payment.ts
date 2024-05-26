@@ -17,15 +17,6 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   const subscriptionManagerAddress = process.env.SUBSCRIPTION_MANAGER_ADDRESS!;
   const planId = parseInt(process.env.PLAN_ID!, 10);
 
-  const accountArtifact = await hre.artifacts.readArtifact(
-    "SubscriptionAccount"
-  );
-  const account = new Contract(
-    subscriptionAccountAddress,
-    accountArtifact.abi,
-    owner
-  );
-
   const subscriptionManagerArtifact = await hre.artifacts.readArtifact(
     "SubscriptionManager"
   );
@@ -34,29 +25,45 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     subscriptionManagerArtifact.abi,
     owner
   );
+
+  // Get the subscription fee in USD from the contract
   const subscriptionFeeUSD = await subscriptionManager.getSubscriptionFee(
     planId
   );
-  console.log(
-    `Subscription fee in USD: ${ethers.utils.formatUnits(
-      subscriptionFeeUSD,
-      8
-    )}`
+  const subscriptionFeeWei = await subscriptionManager.convertUSDtoETH(
+    subscriptionFeeUSD
   );
 
-  // Convert the subscription fee from USD to ETH (not needed to send in transaction)
-  const subscriptionFeeWei = await account.convertUSDtoETH(subscriptionFeeUSD);
-  const subscriptionFeeETH = ethers.utils.formatEther(subscriptionFeeWei);
-  console.log(`Subscription fee: ${subscriptionFeeETH} ETH`);
+  console.log(ethers.utils.formatUnits(subscriptionFeeWei, 18));
 
+  // Estimate the gas cost for the transaction
   const gasPrice = await provider.getGasPrice();
   const gasLimit = await provider.estimateGas({
     from: subscriptionAccountAddress,
     to: subscriptionManagerAddress,
-    value: 0,
-    data: "0x",
+    value: subscriptionFeeWei,
+    data: subscriptionManager.interface.encodeFunctionData(
+      "startSubscription",
+      [planId]
+    ),
   });
+  const gasCost = gasPrice.mul(gasLimit);
 
+  // Calculate the amount to send including gas cost
+  const totalAmount = subscriptionFeeWei.add(gasCost);
+
+  // Ensure there are enough funds to cover the total cost
+  const subscriptionAccountBalance = await provider.getBalance(
+    subscriptionAccountAddress
+  );
+  if (subscriptionAccountBalance.lt(totalAmount)) {
+    console.error(
+      "Insufficient balance to cover subscription fee and gas cost."
+    );
+    return;
+  }
+
+  // Populate the transaction
   let executeTransactionTx = {
     from: subscriptionAccountAddress,
     to: subscriptionManagerAddress,
@@ -66,10 +73,10 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     customData: {
       gasPerPubdata: utils.DEFAULT_GAS_PER_PUBDATA_LIMIT,
     } as types.Eip712Meta,
-    value: 0,
+    value: subscriptionFeeWei,
     data: subscriptionManager.interface.encodeFunctionData(
-      "processSubscriptionPayment",
-      [subscriptionAccountAddress, planId]
+      "startSubscription",
+      [planId]
     ),
     gasPrice: gasPrice,
     gasLimit: gasLimit,
@@ -85,14 +92,11 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     customSignature: signature,
   };
 
-  console.log(
-    "Executing transaction to pay subscription fee from SubscriptionAccount to SubscriptionManager..."
-  );
-
+  console.log("Executing transaction to start subscription and pay fee...");
   const sentTx = await provider.sendTransaction(
     utils.serialize(executeTransactionTx)
   );
   await sentTx.wait();
 
-  console.log("Subscription fee paid successfully");
+  console.log("Subscription fee paid successfully and subscription started");
 }

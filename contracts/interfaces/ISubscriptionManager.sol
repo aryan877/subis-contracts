@@ -11,9 +11,11 @@ interface ISubscriptionManager {
         uint256 planId
     ) external view returns (bool);
 
-    function subscribe(address subscriber, uint256 planId) external;
+    function subscribe(uint256 planId) external;
 
-    function unsubscribe(address subscriber, uint256 planId) external;
+    function unsubscribe(uint256 planId) external;
 
     function withdraw() external;
+
+    function chargeExpiredSubscriptions() external;
 }

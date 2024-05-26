@@ -8,56 +8,66 @@ import {
 } from "zksync-web3";
 import * as ethers from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const PAYMASTER_ADDRESS = process.env.PAYMASTER_ADDRESS!;
+const SUBSCRIPTION_ACCOUNT_ADDRESS = process.env.SUBSCRIPTION_ACCOUNT_ADDRESS!;
+const SUBSCRIPTION_MANAGER_ADDRESS = process.env.SUBSCRIPTION_MANAGER_ADDRESS!;
+const PLAN_ID = parseInt(process.env.PLAN_ID!, 10);
 
 export default async function (hre: HardhatRuntimeEnvironment) {
   // @ts-ignore target zkSyncTestnet in config file which can be testnet or local
   const provider = new Provider(hre.config.networks.zkSyncTestnet.url);
   const owner = new Wallet(process.env.WALLET_PRIVATE_KEY!, provider);
-  const subscriptionAccountAddress = process.env.SUBSCRIPTION_ACCOUNT_ADDRESS!;
-  const subscriptionManagerAddress = process.env.SUBSCRIPTION_MANAGER_ADDRESS!;
-  const planId = parseInt(process.env.PLAN_ID!, 10);
 
   const subscriptionManagerArtifact = await hre.artifacts.readArtifact(
     "SubscriptionManager"
   );
   const subscriptionManager = new Contract(
-    subscriptionManagerAddress,
+    SUBSCRIPTION_MANAGER_ADDRESS,
     subscriptionManagerArtifact.abi,
     owner
   );
 
-  let unsubscribeTx = await subscriptionManager.populateTransaction.unsubscribe(
-    subscriptionAccountAddress,
-    planId
+  const paymasterParams = utils.getPaymasterParams(PAYMASTER_ADDRESS, {
+    type: "General",
+    innerInput: new Uint8Array(),
+  });
+
+  let subscribeTx = await subscriptionManager.populateTransaction.subscribe(
+    PLAN_ID
   );
-  unsubscribeTx = {
-    ...unsubscribeTx,
-    from: owner.address,
+  subscribeTx = {
+    ...subscribeTx,
+    from: SUBSCRIPTION_ACCOUNT_ADDRESS,
     chainId: (await provider.getNetwork()).chainId,
-    nonce: await provider.getTransactionCount(owner.address),
+    nonce: await provider.getTransactionCount(SUBSCRIPTION_ACCOUNT_ADDRESS),
     type: 113,
     customData: {
       gasPerPubdata: utils.DEFAULT_GAS_PER_PUBDATA_LIMIT,
+      paymasterParams: paymasterParams,
     } as types.Eip712Meta,
     value: ethers.BigNumber.from(0),
   };
 
-  unsubscribeTx.gasPrice = await provider.getGasPrice();
-  unsubscribeTx.gasLimit = await provider.estimateGas(unsubscribeTx);
+  subscribeTx.gasPrice = await provider.getGasPrice();
+  subscribeTx.gasLimit = await provider.estimateGas(subscribeTx);
 
-  const signedTxHash = EIP712Signer.getSignedDigest(unsubscribeTx);
+  const signedTxHash = EIP712Signer.getSignedDigest(subscribeTx);
   const signature = ethers.utils.arrayify(
     ethers.utils.joinSignature(owner._signingKey().signDigest(signedTxHash))
   );
 
-  unsubscribeTx.customData = {
-    ...unsubscribeTx.customData,
+  subscribeTx.customData = {
+    ...subscribeTx.customData,
     customSignature: signature,
   };
 
-  console.log("Unsubscribing account...");
-  const sentTx = await provider.sendTransaction(utils.serialize(unsubscribeTx));
+  console.log("Subscribing account to plan...");
+  const sentTx = await provider.sendTransaction(utils.serialize(subscribeTx));
   await sentTx.wait();
 
-  console.log("Unsubscribed successfully from plan", planId);
+  console.log("Subscribed successfully to plan", PLAN_ID);
 }

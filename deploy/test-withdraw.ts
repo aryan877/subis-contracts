@@ -1,15 +1,10 @@
-import {
-  utils,
-  Wallet,
-  Provider,
-  Contract,
-  EIP712Signer,
-  types,
-} from "zksync-web3";
-import * as ethers from "ethers";
+import { Wallet, Provider, Contract } from "zksync-web3";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import * as dotenv from "dotenv";
+import { ethers } from "ethers";
 
 export default async function (hre: HardhatRuntimeEnvironment) {
+  dotenv.config();
   // @ts-ignore target zkSyncTestnet in config file which can be testnet or local
   const provider = new Provider(hre.config.networks.zkSyncTestnet.url);
   const owner = new Wallet(process.env.WALLET_PRIVATE_KEY!, provider);
@@ -18,69 +13,41 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   const accountArtifact = await hre.artifacts.readArtifact(
     "SubscriptionAccount"
   );
-  const account = new Contract(
+  const subscriptionAccount = new Contract(
     subscriptionAccountAddress,
     accountArtifact.abi,
     owner
   );
 
-  // Get the current balance of the SubscriptionAccount
-  const subscriptionAccountBalance = await provider.getBalance(
-    subscriptionAccountAddress
+  const balanceWei = await provider.getBalance(subscriptionAccountAddress);
+  console.log(
+    `Balance of the smart contract account: ${ethers.utils.formatEther(
+      balanceWei
+    )} ETH`
   );
 
-  // Estimate the gas cost for the transaction
   const gasPrice = await provider.getGasPrice();
-  const gasLimit = await provider.estimateGas({
-    from: subscriptionAccountAddress,
-    to: owner.address,
-    value: subscriptionAccountBalance,
-    data: "0x",
-  });
-  const gasCost = gasPrice.mul(gasLimit);
+  const estimatedGasLimit = await subscriptionAccount.estimateGas.withdraw(
+    balanceWei,
+    { from: owner.address }
+  );
+  const gasCost = gasPrice.mul(estimatedGasLimit);
 
-  // Calculate the amount to send after deducting gas cost
-  const amountToSend = subscriptionAccountBalance.sub(gasCost);
+  console.log(`Estimated Gas Cost: ${ethers.utils.formatEther(gasCost)} ETH`);
 
-  // Ensure there are enough funds to cover gas cost
-  if (amountToSend.lte(ethers.constants.Zero)) {
+  const amountToWithdraw = balanceWei.sub(gasCost);
+
+  if (amountToWithdraw.lte(ethers.constants.Zero)) {
     console.error("Insufficient balance to cover gas cost.");
     return;
   }
-
-  let executeTransactionTx = {
-    from: subscriptionAccountAddress,
-    to: owner.address,
-    chainId: (await provider.getNetwork()).chainId,
-    nonce: await provider.getTransactionCount(subscriptionAccountAddress),
-    type: 113,
-    customData: {
-      gasPerPubdata: utils.DEFAULT_GAS_PER_PUBDATA_LIMIT,
-    } as types.Eip712Meta,
-    value: amountToSend,
-    data: "0x",
-    gasPrice: gasPrice,
-    gasLimit: gasLimit,
-  };
-
-  const signedTxHash = EIP712Signer.getSignedDigest(executeTransactionTx);
-  const signature = ethers.utils.joinSignature(
-    owner._signingKey().signDigest(signedTxHash)
-  );
-
-  executeTransactionTx.customData = {
-    ...executeTransactionTx.customData,
-    customSignature: signature,
-  };
-
   console.log(
-    "Executing transaction to send remaining funds from SubscriptionAccount to owner..."
+    `Withdrawing ${ethers.utils.formatEther(
+      amountToWithdraw
+    )} ETH from SubscriptionAccount to owner...`
   );
+  const tx = await subscriptionAccount.withdraw(amountToWithdraw);
+  await tx.wait();
 
-  const sentTx = await provider.sendTransaction(
-    utils.serialize(executeTransactionTx)
-  );
-  await sentTx.wait();
-
-  console.log("Remaining funds sent successfully");
+  console.log("Funds withdrawn successfully.");
 }

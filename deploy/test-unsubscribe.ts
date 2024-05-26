@@ -8,6 +8,9 @@ import {
 } from "zksync-web3";
 import * as ethers from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export default async function (hre: HardhatRuntimeEnvironment) {
   // @ts-ignore target zkSyncTestnet in config file which can be testnet or local
@@ -15,6 +18,8 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   const owner = new Wallet(process.env.WALLET_PRIVATE_KEY!, provider);
   const subscriptionAccountAddress = process.env.SUBSCRIPTION_ACCOUNT_ADDRESS!;
   const subscriptionManagerAddress = process.env.SUBSCRIPTION_MANAGER_ADDRESS!;
+  const paymasterAddress = process.env.PAYMASTER_ADDRESS!;
+  const planId = parseInt(process.env.PLAN_ID!, 10);
 
   const subscriptionManagerArtifact = await hre.artifacts.readArtifact(
     "SubscriptionManager"
@@ -25,17 +30,24 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     owner
   );
 
+  const paymasterParams = utils.getPaymasterParams(paymasterAddress, {
+    type: "General",
+    innerInput: new Uint8Array(),
+  });
+
   let unsubscribeTx = await subscriptionManager.populateTransaction.unsubscribe(
-    subscriptionAccountAddress
+    planId
   );
+
   unsubscribeTx = {
     ...unsubscribeTx,
-    from: owner.address,
+    from: subscriptionAccountAddress,
     chainId: (await provider.getNetwork()).chainId,
-    nonce: await provider.getTransactionCount(owner.address),
+    nonce: await provider.getTransactionCount(subscriptionAccountAddress),
     type: 113,
     customData: {
       gasPerPubdata: utils.DEFAULT_GAS_PER_PUBDATA_LIMIT,
+      paymasterParams: paymasterParams,
     } as types.Eip712Meta,
     value: ethers.BigNumber.from(0),
   };
@@ -53,9 +65,9 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     customSignature: signature,
   };
 
-  console.log("Unsubscribing account...");
+  console.log("Unsubscribing account from plan using paymaster...");
   const sentTx = await provider.sendTransaction(utils.serialize(unsubscribeTx));
   await sentTx.wait();
 
-  console.log("Unsubscribed successfully");
+  console.log("Unsubscribed successfully from plan", planId);
 }

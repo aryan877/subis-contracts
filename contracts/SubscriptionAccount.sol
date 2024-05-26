@@ -8,30 +8,23 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@matterlabs/zksync-contracts/l2/system-contracts/Constants.sol";
 import "./interfaces/ISubscriptionManager.sol";
 
-/**
- * @title SubscriptionAccount
- * @dev This contract represents a subscription account that can execute transactions with spending limits.
- * It interacts with a subscription manager to handle subscription payments and renewals.
- */
 contract SubscriptionAccount is IAccount, IERC1271 {
     using TransactionHelper for Transaction;
 
-    uint256 public constant ONE_DAY = 24 hours; // The duration of one day in seconds
+    uint256 public constant ONE_DAY = 24 hours;
     bytes4 constant EIP1271_SUCCESS_RETURN_VALUE = 0x1626ba7e;
 
     struct Limit {
-        uint256 limit; // The maximum spending limit for a token
-        uint256 available; // The available spending amount for a token
-        uint256 resetTime; // The timestamp when the spending limit resets
-        bool isEnabled; // Flag indicating if the spending limit is enabled
+        uint256 limit;
+        uint256 available;
+        uint256 resetTime;
+        bool isEnabled;
     }
 
-    mapping(address => Limit) public limits; // Mapping to store spending limits for each token
+    mapping(address => Limit) public limits;
+    address public owner;
+    ISubscriptionManager public subscriptionManager;
 
-    address public owner; // The owner of the subscription account
-    ISubscriptionManager public subscriptionManager; // The subscription manager contract
-
-    // Custom errors
     error InvalidAmount();
     error InvalidUpdate();
     error InvalidNonce();
@@ -42,24 +35,15 @@ contract SubscriptionAccount is IAccount, IERC1271 {
     error TransactionExecutionFailed();
     error NotSubscribed();
 
-    // Events
     event SpendingLimitSet(address indexed token, uint256 amount);
     event SpendingLimitRemoved(address indexed token);
     event SubscriptionFeePaid(uint256 amount);
 
-    /**
-     * @dev Constructor function to initialize the subscription account.
-     * @param _owner The address of the account owner.
-     * @param _subscriptionManagerAddress The address of the subscription manager contract.
-     */
     constructor(address _owner, address _subscriptionManagerAddress) {
         owner = _owner;
         subscriptionManager = ISubscriptionManager(_subscriptionManagerAddress);
     }
 
-    /**
-     * @dev Modifier to restrict access to only the bootloader.
-     */
     modifier onlyBootloader() {
         require(
             msg.sender == BOOTLOADER_FORMAL_ADDRESS,
@@ -68,11 +52,11 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         _;
     }
 
-    /**
-     * @dev Set the spending limit for a specific token.
-     * @param _token The address of the token.
-     * @param _amount The spending limit amount.
-     */
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Caller is not the owner");
+        _;
+    }
+
     function setSpendingLimit(address _token, uint256 _amount) public {
         if (_amount == 0) revert InvalidAmount();
 
@@ -89,21 +73,12 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         emit SpendingLimitSet(_token, _amount);
     }
 
-    /**
-     * @dev Remove the spending limit for a specific token.
-     * @param _token The address of the token.
-     */
     function removeSpendingLimit(address _token) public {
         if (!isValidUpdate(_token)) revert InvalidUpdate();
         _updateLimit(_token, 0, 0, 0, false);
         emit SpendingLimitRemoved(_token);
     }
 
-    /**
-     * @dev Check if an update to the spending limit is valid.
-     * @param _token The address of the token.
-     * @return A boolean indicating if the update is valid.
-     */
     function isValidUpdate(address _token) internal view returns (bool) {
         if (limits[_token].isEnabled) {
             return (limits[_token].limit == limits[_token].available ||
@@ -113,14 +88,6 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         }
     }
 
-    /**
-     * @dev Update the spending limit for a token.
-     * @param _token The address of the token.
-     * @param _limit The new spending limit.
-     * @param _available The new available spending amount.
-     * @param _resetTime The new reset timestamp.
-     * @param _isEnabled The new enabled status.
-     */
     function _updateLimit(
         address _token,
         uint256 _limit,
@@ -135,11 +102,6 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         limit.isEnabled = _isEnabled;
     }
 
-    /**
-     * @dev Check the spending limit before executing a transaction.
-     * @param _token The address of the token.
-     * @param _amount The amount to be spent.
-     */
     function _checkSpendingLimit(address _token, uint256 _amount) internal {
         Limit memory limit = limits[_token];
 
@@ -160,12 +122,6 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         limits[_token] = limit;
     }
 
-    /**
-     * @dev Validate a transaction.
-     * @param _suggestedSignedHash The suggested signed hash of the transaction.
-     * @param _transaction The transaction to be validated.
-     * @return magic The magic value indicating the validation status.
-     */
     function validateTransaction(
         bytes32,
         bytes32 _suggestedSignedHash,
@@ -174,12 +130,6 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         return _validateTransaction(_suggestedSignedHash, _transaction);
     }
 
-    /**
-     * @dev Internal function to validate a transaction.
-     * @param _suggestedSignedHash The suggested signed hash of the transaction.
-     * @param _transaction The transaction to be validated.
-     * @return magic The magic value indicating the validation status.
-     */
     function _validateTransaction(
         bytes32 _suggestedSignedHash,
         Transaction calldata _transaction
@@ -221,10 +171,6 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         }
     }
 
-    /**
-     * @dev Execute a transaction.
-     * @param _transaction The transaction to be executed.
-     */
     function executeTransaction(
         bytes32,
         bytes32,
@@ -233,66 +179,26 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         _executeTransaction(_transaction);
     }
 
-    /**
-     * @dev Internal function to execute a transaction.
-     * @param _transaction The transaction to be executed.
-     */
     function _executeTransaction(Transaction calldata _transaction) internal {
         address to = address(uint160(_transaction.to));
         uint256 value = _transaction.reserved[1];
         bytes memory data = _transaction.data;
 
-        if (to == address(subscriptionManager)) {
-            uint256 planId = abi.decode(data, (uint256));
-            _paySubscriptionFee(planId);
-        } else {
-            bool success;
-            assembly {
-                success := call(
-                    gas(),
-                    to,
-                    value,
-                    add(data, 0x20),
-                    mload(data),
-                    0,
-                    0
-                )
-            }
-            require(success, "Transaction execution failed");
-        }
-    }
-
-    function _paySubscriptionFee(uint256 planId) internal {
-        uint256 subscriptionFeeUSD = subscriptionManager.getSubscriptionFee(
-            planId
-        );
-        uint256 subscriptionFeeWei = subscriptionManager.convertUSDtoETH(
-            subscriptionFeeUSD
-        );
-
-        if (address(this).balance < subscriptionFeeWei)
-            revert InsufficientBalance();
-
-        (bool success, ) = address(subscriptionManager).call{
-            value: subscriptionFeeWei
-        }(
-            abi.encodeWithSignature(
-                "processSubscriptionPayment(address,uint256)",
-                address(this),
-                planId
+        bool success;
+        assembly {
+            success := call(
+                gas(),
+                to,
+                value,
+                add(data, 0x20),
+                mload(data),
+                0,
+                0
             )
-        );
-        if (!success) revert SubscriptionPaymentFailed();
-
-        emit SubscriptionFeePaid(subscriptionFeeWei);
+        }
+        require(success, "Transaction execution failed");
     }
 
-    /**
-     * @dev Check if a signature is valid for the given hash.
-     * @param _hash The hash to be signed.
-     * @param _signature The signature to be verified.
-     * @return magic The magic value indicating the signature validity.
-     */
     function isValidSignature(
         bytes32 _hash,
         bytes memory _signature
@@ -300,7 +206,6 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         magic = EIP1271_SUCCESS_RETURN_VALUE;
 
         if (_signature.length == 65) {
-            // ECDSA signature
             bytes32 r;
             bytes32 s;
             uint8 v;
@@ -328,15 +233,10 @@ contract SubscriptionAccount is IAccount, IERC1271 {
                 }
             }
         } else {
-            // Invalid signature length
             magic = bytes4(0);
         }
     }
 
-    /**
-     * @dev Pay for a transaction.
-     * @param _transaction The transaction to be paid for.
-     */
     function payForTransaction(
         bytes32,
         bytes32,
@@ -346,21 +246,14 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         if (!success) revert TransactionExecutionFailed();
     }
 
-    /**
-     * @dev Prepare for a paymaster (not used in this example).
-     */
     function prepareForPaymaster(
         bytes32,
         bytes32,
         Transaction calldata _transaction
     ) external payable override onlyBootloader {
-        // This function is part of the IAccount interface but is not used in this example.
+        // Not used in this example.
     }
 
-    /**
-     * @dev Execute a transaction from outside the account.
-     * @param _transaction The transaction to be executed.
-     */
     function executeTransactionFromOutside(
         Transaction calldata _transaction
     ) external payable {
@@ -368,11 +261,32 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         _executeTransaction(_transaction);
     }
 
-    fallback() external {
-        // fallback of default account shouldn't be called by bootloader under no circumstances
-        assert(msg.sender != BOOTLOADER_FORMAL_ADDRESS);
+    function chargeWallet(uint256 amount) external {
+        require(
+            msg.sender == address(subscriptionManager),
+            "Only subscription manager can charge the wallet"
+        );
+        require(
+            address(this).balance >= amount,
+            "Insufficient balance in the wallet"
+        );
 
-        // If the contract is called directly, behave like an EOA
+        (bool success, ) = address(subscriptionManager).call{value: amount}("");
+        require(success, "Transfer to subscription manager failed");
+    }
+
+    function withdraw(uint256 amount) external onlyOwner {
+        require(
+            address(this).balance >= amount,
+            "Insufficient balance in the wallet"
+        );
+
+        (bool success, ) = owner.call{value: amount}("");
+        require(success, "Withdrawal failed");
+    }
+
+    fallback() external {
+        assert(msg.sender != BOOTLOADER_FORMAL_ADDRESS);
     }
 
     receive() external payable {}
