@@ -251,7 +251,7 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         bytes32,
         Transaction calldata _transaction
     ) external payable override onlyBootloader {
-        // Not used in this example.
+        _transaction.processPaymasterInput();
     }
 
     function executeTransactionFromOutside(
