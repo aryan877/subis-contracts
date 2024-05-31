@@ -34,8 +34,8 @@
     "test:paymaster-balance": "hardhat deploy-zksync --script test-paymaster-balance.ts",
     "test:fund-smart-wallet": "hardhat deploy-zksync --script test-fund-smart-wallet.ts",
     "test:fund-paymaster": "hardhat deploy-zksync --script test-fund-paymaster.ts",
-    "deploy-all": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn deploy:subscription-manager && yarn deploy:deploy-paymaster && yarn deploy:subscription-account",
-    "cte": "yarn test:create-plan && yarn test:make-plan-live"
+    "copy-artifacts": "cp -r -f artifacts-zk ../app/",
+    "deploy-all": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn deploy:subscription-manager && yarn deploy:deploy-paymaster && yarn deploy:subscription-account && yarn copy-artifacts"
   },
   "devDependencies": {
     "@matterlabs/hardhat-zksync-chai-matchers": "^0.1.2",

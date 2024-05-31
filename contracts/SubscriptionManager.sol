@@ -16,6 +16,7 @@ contract SubscriptionManager is ISubscriptionManager {
     struct Subscription {
         uint256 planId;
         uint256 nextPaymentTimestamp;
+        bool isActive;
     }
 
     uint256 public lastChargeTimestamp;
@@ -104,19 +105,17 @@ contract SubscriptionManager is ISubscriptionManager {
             Subscription storage subscription = subscriptions[subscriber];
 
             if (
+                subscription.isActive &&
                 subscription.planId == planId &&
                 block.timestamp >= subscription.nextPaymentTimestamp
             ) {
-                uint256 subscriptionFeeUSD = plans[planId].feeUSD;
                 uint256 subscriptionFeeWei = convertUSDtoETH(
-                    subscriptionFeeUSD
+                    plans[planId].feeUSD
                 );
 
-                ISubscriptionAccount subscriptionAccount = ISubscriptionAccount(
-                    subscriber
-                );
+                chargeWallet(subscriber, subscriptionFeeWei);
 
-                try subscriptionAccount.chargeWallet(subscriptionFeeWei) {
+                if (subscription.isActive) {
                     subscription.nextPaymentTimestamp = getNextMonthSameDay();
                     emit SubscriptionFeePaid(
                         subscriber,
@@ -128,7 +127,7 @@ contract SubscriptionManager is ISubscriptionManager {
                         planId,
                         subscription.nextPaymentTimestamp
                     );
-                } catch {
+                } else {
                     emit PaymentFailed(subscriber, planId, subscriptionFeeWei);
                 }
             }
@@ -150,9 +149,8 @@ contract SubscriptionManager is ISubscriptionManager {
         string calldata name,
         uint256 feeUSD
     ) external onlyOwner {
-        uint256 planId = planCount + 1;
-        plans[planId] = Plan(name, feeUSD, true, false);
-        planCount++;
+        uint256 planId = ++planCount;
+        plans[planId] = Plan(planId, name, feeUSD, true, false);
         planIds.push(planId);
         emit PlanCreated(planId, name, feeUSD);
     }
@@ -207,26 +205,25 @@ contract SubscriptionManager is ISubscriptionManager {
 
     function getAllPlans() external view returns (Plan[] memory) {
         Plan[] memory allPlans = new Plan[](planCount);
-        for (uint256 i = 1; i <= planCount; i++) {
-            allPlans[i - 1] = plans[planIds[i - 1]];
+        for (uint256 i = 0; i < planCount; i++) {
+            allPlans[i] = plans[planIds[i]];
         }
         return allPlans;
     }
 
     function getLivePlans() external view returns (Plan[] memory) {
         uint256 livePlanCount = 0;
-        for (uint256 i = 1; i <= planCount; i++) {
-            if (plans[planIds[i - 1]].isLive) {
+        for (uint256 i = 0; i < planCount; i++) {
+            if (plans[planIds[i]].isLive) {
                 livePlanCount++;
             }
         }
 
         Plan[] memory livePlans = new Plan[](livePlanCount);
         uint256 counter = 0;
-        for (uint256 i = 1; i <= planCount; i++) {
-            if (plans[planIds[i - 1]].isLive) {
-                livePlans[counter] = plans[planIds[i - 1]];
-                counter++;
+        for (uint256 i = 0; i < planCount; i++) {
+            if (plans[planIds[i]].isLive) {
+                livePlans[counter++] = plans[planIds[i]];
             }
         }
         return livePlans;
@@ -257,25 +254,15 @@ contract SubscriptionManager is ISubscriptionManager {
 
     function getTotalRevenue() external view returns (uint256) {
         uint256 balance = address(this).balance;
-        uint256 totalRevenueUSD = convertETHtoUSD(balance);
-        return totalRevenueUSD;
+        return convertETHtoUSD(balance);
     }
 
     function getTotalSubscribers() external view returns (uint256) {
         uint256 totalSubscribers = 0;
-        for (uint256 i = 1; i <= planIds.length; i++) {
-            uint256 planId = planIds[i - 1];
+        for (uint256 i = 0; i < planIds.length; i++) {
+            uint256 planId = planIds[i];
             if (plans[planId].exists && plans[planId].isLive) {
-                for (uint256 j = 0; j < planSubscribers[planId].length; j++) {
-                    address subscriber = planSubscribers[planId][j];
-                    if (
-                        subscriptions[subscriber].planId == planId &&
-                        block.timestamp <
-                        subscriptions[subscriber].nextPaymentTimestamp
-                    ) {
-                        totalSubscribers++;
-                    }
-                }
+                totalSubscribers += planSubscribers[planId].length;
             }
         }
         return totalSubscribers;
@@ -289,78 +276,123 @@ contract SubscriptionManager is ISubscriptionManager {
         uint256 currentPlanId = subscription.planId;
 
         if (currentPlanId != 0) {
-            if (currentPlanId == planId) revert AlreadySubscribed();
-
-            uint256 currentPlanFeeUSD = plans[currentPlanId].feeUSD;
-            uint256 newPlanFeeUSD = plans[planId].feeUSD;
-
-            if (newPlanFeeUSD > currentPlanFeeUSD) {
-                uint256 feeDifferenceUSD = newPlanFeeUSD - currentPlanFeeUSD;
-                uint256 feeDifferenceWei = convertUSDtoETH(feeDifferenceUSD);
-
-                ISubscriptionAccount subscriptionAccount = ISubscriptionAccount(
-                    msg.sender
-                );
-
-                try
-                    subscriptionAccount.chargeWallet(feeDifferenceWei)
-                {} catch {
-                    revert InsufficientBalance();
+            if (currentPlanId == planId) {
+                if (subscription.isActive) {
+                    revert AlreadySubscribed();
+                } else {
+                    if (block.timestamp > subscription.nextPaymentTimestamp) {
+                        // Case 1: Buying the same plan after the plan expiration period
+                        uint256 subscriptionFeeWei = convertUSDtoETH(
+                            plans[planId].feeUSD
+                        );
+                        chargeWallet(msg.sender, subscriptionFeeWei);
+                        emit SubscriptionFeePaid(
+                            msg.sender,
+                            planId,
+                            subscriptionFeeWei
+                        );
+                        subscription
+                            .nextPaymentTimestamp = getNextMonthSameDay();
+                        emit NextPaymentTimestampUpdated(
+                            msg.sender,
+                            planId,
+                            subscription.nextPaymentTimestamp
+                        );
+                    } else {
+                        // Case 2: Resuming the same plan within the plan expiration time
+                        subscription.isActive = true;
+                        emit Subscribed(msg.sender, planId);
+                    }
+                    planSubscribers[planId].push(msg.sender);
+                    return;
                 }
-            } else if (newPlanFeeUSD < currentPlanFeeUSD) {
-                uint256 feeDifferenceUSD = currentPlanFeeUSD - newPlanFeeUSD;
-                uint256 feeDifferenceWei = convertUSDtoETH(feeDifferenceUSD);
+            } else {
+                if (block.timestamp > subscription.nextPaymentTimestamp) {
+                    // Case 3: Buying a different plan after plan expiration date
+                    uint256 subscriptionFeeWei = convertUSDtoETH(
+                        plans[planId].feeUSD
+                    );
+                    chargeWallet(msg.sender, subscriptionFeeWei);
+                    emit SubscriptionFeePaid(
+                        msg.sender,
+                        planId,
+                        subscriptionFeeWei
+                    );
+                    subscription.nextPaymentTimestamp = getNextMonthSameDay();
+                    emit NextPaymentTimestampUpdated(
+                        msg.sender,
+                        planId,
+                        subscription.nextPaymentTimestamp
+                    );
+                } else {
+                    // Case 4: Buying a different plan within the plan expiration date ( charge/refund fee for remaining days )
+                    uint256 currentPlanFeeWei = convertUSDtoETH(
+                        plans[currentPlanId].feeUSD
+                    );
+                    uint256 newPlanFeeWei = convertUSDtoETH(
+                        plans[planId].feeUSD
+                    );
 
-                if (address(this).balance < feeDifferenceWei) {
-                    revert InsufficientBalance();
+                    uint256 remainingSeconds = subscription
+                        .nextPaymentTimestamp - block.timestamp;
+                    uint256 remainingDays = remainingSeconds / 86400; // as 86400 seconds in a day
+
+                    // calculating refund/charge for remaining days in the subscription period
+                    uint256 currentPlanFeePerDay = currentPlanFeeWei /
+                        DateTimeLibrary._getDaysInMonth(
+                            DateTimeLibrary.getYear(
+                                subscription.nextPaymentTimestamp
+                            ),
+                            DateTimeLibrary.getMonth(
+                                subscription.nextPaymentTimestamp
+                            )
+                        );
+                    uint256 newPlanFeePerDay = newPlanFeeWei /
+                        DateTimeLibrary._getDaysInMonth(
+                            DateTimeLibrary.getYear(
+                                subscription.nextPaymentTimestamp
+                            ),
+                            DateTimeLibrary.getMonth(
+                                subscription.nextPaymentTimestamp
+                            )
+                        );
+
+                    uint256 currentPlanRemainingFee = currentPlanFeePerDay *
+                        remainingDays;
+                    uint256 newPlanRemainingFee = newPlanFeePerDay *
+                        remainingDays;
+
+                    if (newPlanRemainingFee > currentPlanRemainingFee) {
+                        uint256 feeDifferenceWei = newPlanRemainingFee -
+                            currentPlanRemainingFee;
+                        chargeWallet(msg.sender, feeDifferenceWei);
+                    } else if (currentPlanRemainingFee > newPlanRemainingFee) {
+                        uint256 refundAmountWei = currentPlanRemainingFee -
+                            newPlanRemainingFee;
+                        refundSubscriber(msg.sender, refundAmountWei);
+                    }
                 }
 
-                (bool success, ) = payable(msg.sender).call{
-                    value: feeDifferenceWei
-                }("");
-                require(success, "Refund failed");
+                removeSubscriber(currentPlanId, msg.sender);
+                emit Unsubscribed(msg.sender, currentPlanId);
             }
-
-            // Remove the subscriber from the current plan's subscribers list
-            address[] storage currentPlanSubscribers = planSubscribers[
-                currentPlanId
-            ];
-            for (uint256 i = 0; i < currentPlanSubscribers.length; i++) {
-                if (currentPlanSubscribers[i] == msg.sender) {
-                    currentPlanSubscribers[i] = currentPlanSubscribers[
-                        currentPlanSubscribers.length - 1
-                    ];
-                    currentPlanSubscribers.pop();
-                    break;
-                }
-            }
-
-            emit Unsubscribed(msg.sender, currentPlanId);
         } else {
-            uint256 subscriptionFeeUSD = plans[planId].feeUSD;
-            uint256 subscriptionFeeWei = convertUSDtoETH(subscriptionFeeUSD);
-
-            ISubscriptionAccount subscriptionAccount = ISubscriptionAccount(
-                msg.sender
-            );
-
-            try subscriptionAccount.chargeWallet(subscriptionFeeWei) {} catch {
-                revert InsufficientBalance();
-            }
-
+            // Case 5: Buying a new subscription plan (new user)
+            uint256 subscriptionFeeWei = convertUSDtoETH(plans[planId].feeUSD);
+            chargeWallet(msg.sender, subscriptionFeeWei);
             emit SubscriptionFeePaid(msg.sender, planId, subscriptionFeeWei);
+            subscription.nextPaymentTimestamp = getNextMonthSameDay();
+            emit NextPaymentTimestampUpdated(
+                msg.sender,
+                planId,
+                subscription.nextPaymentTimestamp
+            );
         }
 
-        // Update the subscription details (for both new and existing subscriptions)
         subscription.planId = planId;
-        subscription.nextPaymentTimestamp = getNextMonthSameDay();
+        subscription.isActive = true;
         planSubscribers[planId].push(msg.sender);
         emit Subscribed(msg.sender, planId);
-        emit NextPaymentTimestampUpdated(
-            msg.sender,
-            planId,
-            subscription.nextPaymentTimestamp
-        );
     }
 
     function unsubscribe() public {
@@ -369,46 +401,29 @@ contract SubscriptionManager is ISubscriptionManager {
 
         if (!plans[currentPlanId].exists) revert InvalidPlan();
 
-        delete subscription.planId;
-        delete subscription.nextPaymentTimestamp;
-
-        // Remove the subscriber from the planSubscribers array
-        address[] storage subscribers = planSubscribers[currentPlanId];
-        for (uint256 i = 0; i < subscribers.length; i++) {
-            if (subscribers[i] == msg.sender) {
-                subscribers[i] = subscribers[subscribers.length - 1];
-                subscribers.pop();
-                break;
-            }
-        }
-
+        subscription.isActive = false;
+        removeSubscriber(currentPlanId, msg.sender);
         emit Unsubscribed(msg.sender, currentPlanId);
     }
 
     function getNextMonthSameDay() internal view returns (uint256) {
         uint256 currentTimestamp = block.timestamp;
-        (
-            uint256 currentYear,
-            uint256 currentMonth,
-            uint256 currentDay
-        ) = DateTimeLibrary.timestampToDate(currentTimestamp);
+        (uint256 year, uint256 month, uint256 day) = DateTimeLibrary
+            .timestampToDate(currentTimestamp);
 
-        uint256 nextMonth = currentMonth + 1;
-        uint256 nextYear = currentYear;
-        if (nextMonth > 12) {
-            nextYear += 1;
-            nextMonth = 1;
+        month += 1;
+        if (month > 12) {
+            year += 1;
+            month = 1;
         }
 
-        uint256 daysInNextMonth = DateTimeLibrary._getDaysInMonth(
-            nextYear,
-            nextMonth
-        );
-        uint256 nextDay = currentDay > daysInNextMonth
-            ? daysInNextMonth
-            : currentDay;
+        uint256 daysInNextMonth = DateTimeLibrary._getDaysInMonth(year, month);
+        if (day > daysInNextMonth) {
+            day = daysInNextMonth;
+        }
 
-        return DateTimeLibrary.timestampFromDate(nextYear, nextMonth, nextDay);
+        // calculated as next month utc midnight
+        return DateTimeLibrary.timestampFromDateTime(year, month, day, 0, 0, 0);
     }
 
     function withdraw() external onlyOwner {
@@ -419,6 +434,35 @@ contract SubscriptionManager is ISubscriptionManager {
         require(success, "Withdrawal failed");
 
         emit FundsWithdrawn(balance);
+    }
+
+    function chargeWallet(address subscriber, uint256 amount) internal {
+        ISubscriptionAccount subscriptionAccount = ISubscriptionAccount(
+            subscriber
+        );
+        try subscriptionAccount.chargeWallet(amount) {} catch {
+            subscriptions[subscriber].isActive = false;
+            revert InsufficientBalance();
+        }
+    }
+
+    function refundSubscriber(address subscriber, uint256 amount) internal {
+        if (address(this).balance < amount) {
+            revert InsufficientBalance();
+        }
+        (bool success, ) = payable(subscriber).call{value: amount}("");
+        require(success, "Refund failed");
+    }
+
+    function removeSubscriber(uint256 planId, address subscriber) internal {
+        address[] storage subscribers = planSubscribers[planId];
+        for (uint256 i = 0; i < subscribers.length; i++) {
+            if (subscribers[i] == subscriber) {
+                subscribers[i] = subscribers[subscribers.length - 1];
+                subscribers.pop();
+                break;
+            }
+        }
     }
 
     receive() external payable {}

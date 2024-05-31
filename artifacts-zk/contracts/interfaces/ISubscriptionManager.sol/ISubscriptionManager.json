@@ -86,6 +86,11 @@
         {
           "components": [
             {
+              "internalType": "uint256",
+              "name": "planId",
+              "type": "uint256"
+            },
+            {
               "internalType": "string",
               "name": "name",
               "type": "string"
@@ -120,6 +125,11 @@
       "outputs": [
         {
           "components": [
+            {
+              "internalType": "uint256",
+              "name": "planId",
+              "type": "uint256"
+            },
             {
               "internalType": "string",
               "name": "name",
