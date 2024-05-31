@@ -20,39 +20,38 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     owner
   );
 
-  // Get the total number of plans
-  const planCount = await subscriptionManager.planCount();
-  console.log(`Total number of plans: ${planCount.toString()}`);
+  // Get all plans
+  const plans = await subscriptionManager.getAllPlans();
+  console.log(plans);
 
-  for (let i = 0; i < planCount; i++) {
-    const plan = await subscriptionManager.plans(i);
+  console.log(`Total number of plans: ${plans.length}`);
+
+  for (const plan of plans) {
     const feeUSD = ethers.utils.formatUnits(plan.feeUSD, 8); // Format fee to USD with 8 decimal places
 
     // Check if the smart account is subscribed to this plan
     const subscription = await subscriptionManager.subscriptions(
-      subscriptionAccountAddress,
-      i
+      subscriptionAccountAddress
     );
 
-    console.log(`Plan ID: ${i}`);
     console.log(` Name: ${plan.name}`);
     console.log(` Fee USD: $${feeUSD}`);
     console.log(` Exists: ${plan.exists}`);
+    console.log(` Is Live: ${plan.isLive}`);
 
-    if (subscription.isSubscribed) {
-      const nextPaymentTimestamp = subscription.nextPaymentTimestamp;
-      const deadline = new Date(nextPaymentTimestamp * 1000).toLocaleString();
-      console.log(` Next Payment Deadline: ${deadline}`);
-      console.log(
-        ` Subscription Status: ${
-          subscription.isActive
-            ? "\x1b[32mActive\x1b[0m"
-            : "\x1b[33mInactive\x1b[0m"
-        }`
-      );
-    } else {
-      console.log(` Subscription Status: \x1b[31mNot Subscribed\x1b[0m`);
-    }
+    const nextPaymentTimestamp = subscription.nextPaymentTimestamp;
+    const deadline = new Date(nextPaymentTimestamp * 1000).toLocaleString();
+    console.log(` Next Payment Deadline: ${deadline}`);
+    console.log(
+      ` Subscription Status: ${
+        (await subscriptionManager.isSubscriptionActive(
+          subscriptionAccountAddress
+        ))
+          ? "\x1b[32mActive\x1b[0m"
+          : "\x1b[33mInactive\x1b[0m"
+      }`
+    );
+
     console.log("");
   }
 }

@@ -6,7 +6,12 @@
   "author": "Aryan <aryankumar877@gmail.com>",
   "license": "MIT",
   "scripts": {
+    "next:dev": "cd app && next dev",
+    "next:build": "cd app && next build",
+    "start": "cd app && next start",
+    "hardhat:compile": "yarn hardhat compile",
     "deploy:aa-factory": "hardhat deploy-zksync --script deploy-aa-factory.ts",
+    "deploy:manager-factory": "hardhat deploy-zksync --script deploy-manager-factory.ts",
     "deploy:subscription-manager": "hardhat deploy-zksync --script deploy-subscription-manager.ts",
     "deploy:subscription-account": "hardhat deploy-zksync --script deploy-subscription-account.ts",
     "deploy:subscription-account-direct": "hardhat deploy-zksync --script deploy-subscription-account-direct.ts",
@@ -20,16 +25,17 @@
     "test:price-feed": "hardhat deploy-zksync --script test-price-feed",
     "test:unsubscribe": "hardhat deploy-zksync --script test-unsubscribe.ts",
     "test:subscription-owner": "hardhat deploy-zksync --script test-subscription-owner.ts",
+    "test:read-subscription-paymaster": "hardhat deploy-zksync --script test-read-subscription-paymaster.ts",
     "test:smart-wallet-balance": "hardhat deploy-zksync --script test-smart-wallet-balance.ts",
     "test:create-plan": "hardhat deploy-zksync --script test-create-plan.ts",
     "test:read-plans": "hardhat deploy-zksync --script test-read-plans.ts",
+    "test:make-plan-live": "hardhat deploy-zksync --script make-plan-live.ts",
     "test:subscription-payment": "hardhat deploy-zksync --script test-subscription-payment.ts",
     "test:paymaster-balance": "hardhat deploy-zksync --script test-paymaster-balance.ts",
     "test:fund-smart-wallet": "hardhat deploy-zksync --script test-fund-smart-wallet.ts",
     "test:fund-paymaster": "hardhat deploy-zksync --script test-fund-paymaster.ts",
-    "deploy-all": "yarn hardhat compile ; yarn deploy:aa-factory ; yarn deploy:subscription-manager ; yarn deploy:deploy-paymaster ; yarn deploy:subscription-account",
-    "test-all": "yarn test:set-spending-limit && yarn test:check-subscription && yarn test:subscribe && yarn test:execute-transaction && yarn test:unsubscribe",
-    "deploy-and-test": "yarn deploy-all && yarn test-all"
+    "deploy-all": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn deploy:subscription-manager && yarn deploy:deploy-paymaster && yarn deploy:subscription-account",
+    "cte": "yarn test:create-plan && yarn test:make-plan-live"
   },
   "devDependencies": {
     "@matterlabs/hardhat-zksync-chai-matchers": "^0.1.2",
@@ -50,7 +56,7 @@
     "zksync-web3": "^0.14.3"
   },
   "dependencies": {
-    "@chainlink/contracts": "^1.1.0",
+    "@chainlink/contracts": "^1.1.1",
     "@matterlabs/zksync-contracts": "^0.6.1",
     "@openzeppelin/contracts": "^4.1.0"
   }

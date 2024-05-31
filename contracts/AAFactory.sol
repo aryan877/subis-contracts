@@ -9,10 +9,16 @@ import "@matterlabs/zksync-contracts/l2/system-contracts/libraries/SystemContrac
  * @dev This contract is responsible for deploying subscription accounts.
  */
 contract AAFactory {
-    bytes32 public aaBytecodeHash; // The bytecode hash of the subscription account contract
+    bytes32 public aaBytecodeHash;
+    mapping(address => mapping(address => address))
+        public ownerToManagerToAccount;
 
     // Event
-    event AccountDeployed(address indexed account, address indexed owner);
+    event AccountDeployed(
+        address indexed account,
+        address indexed owner,
+        address indexed manager
+    );
 
     /**
      * @dev Constructor function to initialize the factory.
@@ -52,6 +58,21 @@ contract AAFactory {
         require(success, "Deployment failed");
         (accountAddress) = abi.decode(returnData, (address));
 
-        emit AccountDeployed(accountAddress, owner);
+        ownerToManagerToAccount[owner][subscriptionManager] = accountAddress;
+
+        emit AccountDeployed(accountAddress, owner, subscriptionManager);
+    }
+
+    /**
+     * @dev Get the deployed subscription account address for a specific owner and manager.
+     * @param owner The address of the owner.
+     * @param subscriptionManager The address of the subscription manager contract.
+     * @return The deployed subscription account address, or address(0) if not found.
+     */
+    function getAccountByOwnerAndManager(
+        address owner,
+        address subscriptionManager
+    ) external view returns (address) {
+        return ownerToManagerToAccount[owner][subscriptionManager];
     }
 }

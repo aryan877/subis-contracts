@@ -60,11 +60,18 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   // Verify contract
   const contractFullyQualifiedName =
     "contracts/SubscriptionAccount.sol:SubscriptionAccount";
-  await hre.run("verify:verify", {
-    address: subscriptionAccountAddress,
-    contract: contractFullyQualifiedName,
-    constructorArguments: [owner, subscriptionManagerAddress],
-    bytecode: subscriptionAccountArtifact.bytecode,
-  });
-  console.log(`${contractFullyQualifiedName} verified!`);
+  try {
+    await hre.run("verify:verify", {
+      address: subscriptionAccountAddress,
+      contract: contractFullyQualifiedName,
+      constructorArguments: [owner, subscriptionManagerAddress],
+      bytecode: subscriptionAccountArtifact.bytecode,
+    });
+    console.log(`${contractFullyQualifiedName} verified!`);
+  } catch (error) {
+    console.error(
+      `Verification failed for ${contractFullyQualifiedName}:`,
+      error
+    );
+  }
 }

@@ -27,11 +27,11 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   const tx = await subscriptionManager.createPlan(planName, feeUSD);
   await tx.wait();
 
-  const planId = (await subscriptionManager.planCount()).sub(1).toString();
+  const planId = await subscriptionManager.planCount();
 
   // Store the new plan ID in the .env file
   const envConfig = dotenv.parse(fs.readFileSync(".env"));
-  envConfig.PLAN_ID = planId;
+  envConfig.PLAN_ID = planId.toString();
   fs.writeFileSync(
     ".env",
     Object.entries(envConfig)

@@ -69,12 +69,20 @@ export default async function (hre: HardhatRuntimeEnvironment) {
 
   const contractFullyQualifiedName =
     "contracts/SubscriptionPaymaster.sol:SubscriptionPaymaster";
-  await hre.run("verify:verify", {
-    address: paymaster.address,
-    contract: contractFullyQualifiedName,
-    constructorArguments: [SUBSCRIPTION_MANAGER_ADDRESS],
-    bytecode: paymasterArtifact.bytecode,
-  });
+  try {
+    await hre.run("verify:verify", {
+      address: paymaster.address,
+      contract: contractFullyQualifiedName,
+      constructorArguments: [SUBSCRIPTION_MANAGER_ADDRESS],
+      bytecode: paymasterArtifact.bytecode,
+    });
+    console.log(`${contractFullyQualifiedName} verified!`);
+  } catch (error) {
+    console.error(
+      `Verification failed for ${contractFullyQualifiedName}:`,
+      error
+    );
+  }
 
   console.log("Deployment and verification complete.");
 }
