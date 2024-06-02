@@ -26,11 +26,11 @@ export default async function (hre: HardhatRuntimeEnvironment) {
 
   let setLimitTx = await account.populateTransaction.setSpendingLimit(
     utils.L2_ETH_TOKEN_ADDRESS,
-    ethers.utils.parseEther("0.1")
+    ethers.utils.parseUnits("100", 8) // USD
   );
   setLimitTx = {
     ...setLimitTx,
-    from: owner.address,
+    from: subscriptionAccountAddress,
     chainId: (await provider.getNetwork()).chainId,
     nonce: await provider.getTransactionCount(owner.address),
     type: 113,

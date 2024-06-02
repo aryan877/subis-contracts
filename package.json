@@ -30,12 +30,15 @@
     "test:create-plan": "hardhat deploy-zksync --script test-create-plan.ts",
     "test:read-plans": "hardhat deploy-zksync --script test-read-plans.ts",
     "test:make-plan-live": "hardhat deploy-zksync --script make-plan-live.ts",
+    "test:charge-expired": "hardhat deploy-zksync --script test-charge-expired-subs.ts",
     "test:subscription-payment": "hardhat deploy-zksync --script test-subscription-payment.ts",
     "test:paymaster-balance": "hardhat deploy-zksync --script test-paymaster-balance.ts",
     "test:fund-smart-wallet": "hardhat deploy-zksync --script test-fund-smart-wallet.ts",
     "test:fund-paymaster": "hardhat deploy-zksync --script test-fund-paymaster.ts",
-    "copy-artifacts": "cp -r -f artifacts-zk ../app/",
-    "deploy-all": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn deploy:subscription-manager && yarn deploy:deploy-paymaster && yarn deploy:subscription-account && yarn copy-artifacts"
+    "copy-artifacts-to-nexjs-app": "cp -r -f artifacts-zk ../app/",
+    "copy-artifacts-to-cron": "cp -r -f artifacts-zk ../cron/",
+    "deploy-all": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn deploy:subscription-manager && yarn deploy:deploy-paymaster && yarn deploy:subscription-account && yarn copy-artifacts-to-nexjs-app && yarn copy-artifacts-to-cron",
+    "deploy-factory": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn copy-artifacts-to-nexjs-app && yarn copy-artifacts-to-cron"
   },
   "devDependencies": {
     "@matterlabs/hardhat-zksync-chai-matchers": "^0.1.2",

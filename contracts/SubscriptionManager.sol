@@ -105,7 +105,7 @@ contract SubscriptionManager is ISubscriptionManager {
         emit PaymasterUpdated(_newPaymaster);
     }
 
-    function chargeExpiredSubscriptions() external {
+    function chargeExpiredSubscriptions() external onlyOwner {
         require(
             block.timestamp >= nextChargeTimestamp,
             "Next charge timestamp not reached"

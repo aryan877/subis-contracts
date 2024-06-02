@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@matterlabs/zksync-contracts/l2/system-contracts/Constants.sol";
 import "@matterlabs/zksync-contracts/l2/system-contracts/libraries/SystemContractsCaller.sol";
+import "@matterlabs/zksync-contracts/l2/system-contracts/interfaces/IContractDeployer.sol";
 
 /**
  * @title AAFactory
@@ -17,7 +18,8 @@ contract AAFactory {
     event AccountDeployed(
         address indexed account,
         address indexed owner,
-        address indexed manager
+        address indexed manager,
+        address priceFeedAddress
     );
 
     /**
@@ -33,13 +35,21 @@ contract AAFactory {
      * @param salt The salt value for creating the account address.
      * @param owner The owner of the subscription account.
      * @param subscriptionManager The address of the subscription manager contract.
+     * @param priceFeedAddress The address of the price feed contract.
      * @return accountAddress The address of the deployed subscription account.
      */
     function deployAccount(
         bytes32 salt,
         address owner,
-        address subscriptionManager
+        address subscriptionManager,
+        address priceFeedAddress
     ) external returns (address accountAddress) {
+        bytes memory constructorArgs = abi.encode(
+            owner,
+            subscriptionManager,
+            priceFeedAddress
+        );
+
         (bool success, bytes memory returnData) = SystemContractsCaller
             .systemCallWithReturndata(
                 uint32(gasleft()),
@@ -50,7 +60,7 @@ contract AAFactory {
                     (
                         salt,
                         aaBytecodeHash,
-                        abi.encode(owner, subscriptionManager),
+                        constructorArgs,
                         IContractDeployer.AccountAbstractionVersion.Version1
                     )
                 )
@@ -60,7 +70,12 @@ contract AAFactory {
 
         ownerToManagerToAccount[owner][subscriptionManager] = accountAddress;
 
-        emit AccountDeployed(accountAddress, owner, subscriptionManager);
+        emit AccountDeployed(
+            accountAddress,
+            owner,
+            subscriptionManager,
+            priceFeedAddress
+        );
     }
 
     /**
