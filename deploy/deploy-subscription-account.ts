@@ -1,21 +1,23 @@
-import { utils, Wallet, Provider } from "zksync-web3";
+import { utils, Wallet, Provider, Contract } from "zksync-web3";
 import * as ethers from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import * as dotenv from "dotenv";
+import dotenv from "dotenv";
 import * as fs from "fs";
 
-export default async function (hre: HardhatRuntimeEnvironment) {
-  dotenv.config();
+dotenv.config();
 
+const PAYMASTER_ADDRESS = process.env.PAYMASTER_ADDRESS!;
+const AA_FACTORY_ADDRESS = process.env.AA_FACTORY_ADDRESS!;
+const SUBSCRIPTION_MANAGER_ADDRESS = process.env.SUBSCRIPTION_MANAGER_ADDRESS!;
+
+export default async function (hre: HardhatRuntimeEnvironment) {
   // @ts-ignore target zkSyncTestnet in config file which can be testnet or local
   const provider = new Provider(hre.config.networks.zkSyncTestnet.url);
   const wallet = new Wallet(process.env.WALLET_PRIVATE_KEY!, provider);
 
-  const factoryAddress = process.env.AA_FACTORY_ADDRESS!;
-  const subscriptionManagerAddress = process.env.SUBSCRIPTION_MANAGER_ADDRESS!;
   const factoryArtifact = await hre.artifacts.readArtifact("AAFactory");
-  const aaFactory = new ethers.Contract(
-    factoryAddress,
+  const aaFactory = new Contract(
+    AA_FACTORY_ADDRESS,
     factoryArtifact.abi,
     wallet
   );
@@ -24,19 +26,36 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   console.log("Subscription Account owner:", owner);
 
   const salt = ethers.constants.HashZero;
-  const tx = await aaFactory.deployAccount(
+
+  const paymasterParams = utils.getPaymasterParams(PAYMASTER_ADDRESS, {
+    type: "General",
+    innerInput: new Uint8Array(),
+  });
+
+  console.log("Deploying SubscriptionAccount...");
+  const deployTx = await aaFactory.deployAccount(
     salt,
     owner,
-    subscriptionManagerAddress
+    SUBSCRIPTION_MANAGER_ADDRESS,
+    {
+      customData: {
+        gasPerPubdata: utils.DEFAULT_GAS_PER_PUBDATA_LIMIT,
+        paymasterParams: paymasterParams,
+      },
+    }
   );
-  await tx.wait();
+
+  await deployTx.wait();
 
   const abiCoder = new ethers.utils.AbiCoder();
   const subscriptionAccountAddress = utils.create2Address(
-    factoryAddress,
+    AA_FACTORY_ADDRESS,
     await aaFactory.aaBytecodeHash(),
     salt,
-    abiCoder.encode(["address", "address"], [owner, subscriptionManagerAddress])
+    abiCoder.encode(
+      ["address", "address"],
+      [owner, SUBSCRIPTION_MANAGER_ADDRESS]
+    )
   );
   console.log("SubscriptionAccount deployed at:", subscriptionAccountAddress);
 
@@ -65,7 +84,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     await hre.run("verify:verify", {
       address: subscriptionAccountAddress,
       contract: contractFullyQualifiedName,
-      constructorArguments: [owner, subscriptionManagerAddress],
+      constructorArguments: [owner, SUBSCRIPTION_MANAGER_ADDRESS],
       bytecode: (
         await hre.artifacts.readArtifact("SubscriptionAccount")
       ).bytecode,

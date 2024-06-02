@@ -10,7 +10,6 @@ import "@matterlabs/zksync-contracts/l2/system-contracts/libraries/SystemContrac
  * @dev This contract is responsible for deploying SubscriptionManager contracts.
  */
 contract ManagerFactory {
-    // Event to notify when a new SubscriptionManager is deployed
     event ManagerDeployed(
         address indexed owner,
         address indexed manager,
@@ -40,7 +39,7 @@ contract ManagerFactory {
         bytes32 salt,
         address owner,
         address priceFeedAddress,
-        string calldata name
+        string memory name
     ) external returns (address managerAddress) {
         bytes memory constructorArgs = abi.encode(
             owner,

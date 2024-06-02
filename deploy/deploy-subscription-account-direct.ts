@@ -42,7 +42,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   await (
     await wallet.sendTransaction({
       to: subscriptionAccountAddress,
-      value: ethers.utils.parseEther("0.001"),
+      value: ethers.utils.parseEther("1"),
     })
   ).wait();
   console.log("SubscriptionAccount funded with ETH");

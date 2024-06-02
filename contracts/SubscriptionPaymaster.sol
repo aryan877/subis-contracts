@@ -9,9 +9,10 @@ import "@matterlabs/zksync-contracts/l2/system-contracts/Constants.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @notice This contract pays the gas fees for transactions related to subscription management.
+/// @notice This contract pays the gas fees for transactions related to subscription management and factory contract.
 contract SubscriptionPaymaster is IPaymaster, Ownable {
     address public subscriptionManager;
+    address public accountFactoryContract;
 
     modifier onlyBootloader() {
         require(
@@ -21,8 +22,9 @@ contract SubscriptionPaymaster is IPaymaster, Ownable {
         _;
     }
 
-    constructor(address _subscriptionManager) {
+    constructor(address _subscriptionManager, address _accountFactoryContract) {
         subscriptionManager = _subscriptionManager;
+        accountFactoryContract = _accountFactoryContract;
     }
 
     function validateAndPayForPaymasterTransaction(
@@ -46,8 +48,9 @@ contract SubscriptionPaymaster is IPaymaster, Ownable {
         );
         if (paymasterInputSelector == IPaymasterFlow.general.selector) {
             require(
-                address(uint160(_transaction.to)) == subscriptionManager,
-                "This paymaster only supports transactions to the Subscription Manager."
+                address(uint160(_transaction.to)) == subscriptionManager ||
+                    address(uint160(_transaction.to)) == accountFactoryContract,
+                "This paymaster only supports transactions to the Subscription Manager or Account Factory Contract."
             );
 
             uint256 requiredETH = _transaction.gasLimit *

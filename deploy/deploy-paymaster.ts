@@ -10,12 +10,17 @@ dotenv.config();
 const PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY || "";
 const SUBSCRIPTION_MANAGER_ADDRESS =
   process.env.SUBSCRIPTION_MANAGER_ADDRESS || "";
+const AA_FACTORY_ADDRESS = process.env.AA_FACTORY_ADDRESS || "";
 
 if (!PRIVATE_KEY)
   throw new Error("⛔️ Private key not detected! Add it to the .env file!");
 if (!SUBSCRIPTION_MANAGER_ADDRESS)
   throw new Error(
     "⛔️ SUBSCRIPTION_MANAGER_ADDRESS not detected! Add it to the .env file!"
+  );
+if (!AA_FACTORY_ADDRESS)
+  throw new Error(
+    "⛔️ AA_FACTORY_ADDRESS not detected! Add it to the .env file!"
   );
 
 export default async function (hre: HardhatRuntimeEnvironment) {
@@ -33,12 +38,14 @@ export default async function (hre: HardhatRuntimeEnvironment) {
 
   const deploymentFee = await deployer.estimateDeployFee(paymasterArtifact, [
     SUBSCRIPTION_MANAGER_ADDRESS,
+    AA_FACTORY_ADDRESS,
   ]);
   const parsedFee = ethers.utils.formatEther(deploymentFee.toString());
   console.log(`The deployment is estimated to cost ${parsedFee} ETH`);
 
   const paymaster = await deployer.deploy(paymasterArtifact, [
     SUBSCRIPTION_MANAGER_ADDRESS,
+    AA_FACTORY_ADDRESS,
   ]);
   console.log(`Paymaster address: ${paymaster.address}`);
 
@@ -73,7 +80,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     await hre.run("verify:verify", {
       address: paymaster.address,
       contract: contractFullyQualifiedName,
-      constructorArguments: [SUBSCRIPTION_MANAGER_ADDRESS],
+      constructorArguments: [SUBSCRIPTION_MANAGER_ADDRESS, AA_FACTORY_ADDRESS],
       bytecode: paymasterArtifact.bytecode,
     });
     console.log(`${contractFullyQualifiedName} verified!`);

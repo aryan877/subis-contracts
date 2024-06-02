@@ -6,6 +6,8 @@ import "@matterlabs/zksync-contracts/l2/system-contracts/libraries/TransactionHe
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@matterlabs/zksync-contracts/l2/system-contracts/Constants.sol";
+import "@matterlabs/zksync-contracts/l2/system-contracts/libraries/SystemContractsCaller.sol";
+import "@matterlabs/zksync-contracts/l2/system-contracts/libraries/Utils.sol";
 import "./interfaces/ISubscriptionManager.sol";
 
 contract SubscriptionAccount is IAccount, IERC1271 {
@@ -52,12 +54,18 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         _;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Caller is not the owner");
+    modifier onlyAccount() {
+        require(
+            msg.sender == address(this),
+            "Only the account itself can call this function"
+        );
         _;
     }
 
-    function setSpendingLimit(address _token, uint256 _amount) public {
+    function setSpendingLimit(
+        address _token,
+        uint256 _amount
+    ) public onlyAccount {
         if (_amount == 0) revert InvalidAmount();
 
         uint256 resetTime;
@@ -73,7 +81,7 @@ contract SubscriptionAccount is IAccount, IERC1271 {
         emit SpendingLimitSet(_token, _amount);
     }
 
-    function removeSpendingLimit(address _token) public {
+    function removeSpendingLimit(address _token) public onlyAccount {
         if (!isValidUpdate(_token)) revert InvalidUpdate();
         _updateLimit(_token, 0, 0, 0, false);
         emit SpendingLimitRemoved(_token);
@@ -81,10 +89,9 @@ contract SubscriptionAccount is IAccount, IERC1271 {
 
     function isValidUpdate(address _token) internal view returns (bool) {
         if (limits[_token].isEnabled) {
-            return (limits[_token].limit == limits[_token].available ||
-                block.timestamp > limits[_token].resetTime);
+            return block.timestamp > limits[_token].resetTime;
         } else {
-            return false;
+            return true;
         }
     }
 
@@ -109,11 +116,9 @@ contract SubscriptionAccount is IAccount, IERC1271 {
 
         uint256 timestamp = block.timestamp;
 
-        if (limit.limit != limit.available && timestamp > limit.resetTime) {
+        if (timestamp > limit.resetTime) {
             limit.resetTime = timestamp + ONE_DAY;
             limit.available = limit.limit;
-        } else if (limit.limit == limit.available) {
-            limit.resetTime = timestamp + ONE_DAY;
         }
 
         if (limit.available < _amount) revert ExceededDailySpendingLimit();
@@ -157,10 +162,6 @@ contract SubscriptionAccount is IAccount, IERC1271 {
             "Insufficient balance"
         );
 
-        if (_transaction.reserved[1] > 0) {
-            _checkSpendingLimit(address(0), _transaction.reserved[1]);
-        }
-
         if (
             isValidSignature(txHash, _transaction.signature) ==
             EIP1271_SUCCESS_RETURN_VALUE
@@ -181,22 +182,40 @@ contract SubscriptionAccount is IAccount, IERC1271 {
 
     function _executeTransaction(Transaction calldata _transaction) internal {
         address to = address(uint160(_transaction.to));
-        uint256 value = _transaction.reserved[1];
+        uint128 value = Utils.safeCastToU128(_transaction.value);
         bytes memory data = _transaction.data;
 
-        bool success;
-        assembly {
-            success := call(
-                gas(),
+        // Call SpendLimit contract to ensure that ETH `value` doesn't exceed the daily spending limit
+        if (value > 0) {
+            _checkSpendingLimit(address(ETH_TOKEN_SYSTEM_CONTRACT), value);
+        }
+
+        if (to == address(DEPLOYER_SYSTEM_CONTRACT)) {
+            uint32 gas = Utils.safeCastToU32(gasleft());
+
+            // Note, that the deployer contract can only be called
+            // with a "systemCall" flag.
+            SystemContractsCaller.systemCallWithPropagatedRevert(
+                gas,
                 to,
                 value,
-                add(data, 0x20),
-                mload(data),
-                0,
-                0
-            )
+                data
+            );
+        } else {
+            bool success;
+            assembly {
+                success := call(
+                    gas(),
+                    to,
+                    value,
+                    add(data, 0x20),
+                    mload(data),
+                    0,
+                    0
+                )
+            }
+            require(success);
         }
-        require(success, "Transaction execution failed");
     }
 
     function isValidSignature(
@@ -256,7 +275,7 @@ contract SubscriptionAccount is IAccount, IERC1271 {
 
     function executeTransactionFromOutside(
         Transaction calldata _transaction
-    ) external payable {
+    ) external payable onlyAccount {
         _validateTransaction(bytes32(0), _transaction);
         _executeTransaction(_transaction);
     }
@@ -266,23 +285,10 @@ contract SubscriptionAccount is IAccount, IERC1271 {
             msg.sender == address(subscriptionManager),
             "Only subscription manager can charge the wallet"
         );
-        require(
-            address(this).balance >= amount,
-            "Insufficient balance in the wallet"
-        );
+        _checkSpendingLimit(address(ETH_TOKEN_SYSTEM_CONTRACT), amount);
 
         (bool success, ) = address(subscriptionManager).call{value: amount}("");
         require(success, "Transfer to subscription manager failed");
-    }
-
-    function withdraw(uint256 amount) external onlyOwner {
-        require(
-            address(this).balance >= amount,
-            "Insufficient balance in the wallet"
-        );
-
-        (bool success, ) = owner.call{value: amount}("");
-        require(success, "Withdrawal failed");
     }
 
     fallback() external {
