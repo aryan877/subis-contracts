@@ -19,10 +19,11 @@ contract SubscriptionManager is ISubscriptionManager {
         bool isActive;
     }
 
-    uint256 public lastChargeTimestamp;
     uint256 public constant CHARGE_INTERVAL = 1 days;
+    uint256 public nextChargeTimestamp;
 
     address public owner;
+    string public name;
     uint256 public planCount;
     address public paymaster;
     mapping(uint256 => Plan) public plans;
@@ -49,8 +50,16 @@ contract SubscriptionManager is ISubscriptionManager {
     event PlanUpdated(uint256 indexed planId, string name, uint256 newFeeUSD);
     event PlanDeleted(uint256 indexed planId);
     event PlanLive(uint256 indexed planId);
-    event Subscribed(address indexed subscriber, uint256 indexed planId);
-    event Unsubscribed(address indexed subscriber, uint256 indexed planId);
+    event Subscribed(
+        address indexed subscriber,
+        uint256 indexed planId,
+        uint256 timestamp
+    );
+    event Unsubscribed(
+        address indexed subscriber,
+        uint256 indexed planId,
+        uint256 timestamp
+    );
     event NextPaymentTimestampUpdated(
         address indexed subscriber,
         uint256 indexed planId,
@@ -60,17 +69,30 @@ contract SubscriptionManager is ISubscriptionManager {
     event SubscriptionFeePaid(
         address indexed subscriber,
         uint256 indexed planId,
-        uint256 amount
+        uint256 amount,
+        uint256 timestamp
     );
     event PaymentFailed(
         address indexed subscriber,
         uint256 indexed planId,
-        uint256 subscriptionFeeWei
+        uint256 subscriptionFeeWei,
+        uint256 timestamp
+    );
+    event SubscriberRefunded(
+        address indexed subscriber,
+        uint256 indexed planId,
+        uint256 amount,
+        uint256 timestamp
     );
 
-    constructor(address _owner, address _priceFeedAddress) {
+    constructor(
+        address _owner,
+        address _priceFeedAddress,
+        string memory _name
+    ) {
         owner = _owner;
         priceFeed = AggregatorV3Interface(_priceFeedAddress);
+        name = _name;
     }
 
     modifier onlyOwner() {
@@ -85,8 +107,8 @@ contract SubscriptionManager is ISubscriptionManager {
 
     function chargeExpiredSubscriptions() external {
         require(
-            block.timestamp >= lastChargeTimestamp + CHARGE_INTERVAL,
-            "Charge interval not reached"
+            block.timestamp >= nextChargeTimestamp,
+            "Next charge timestamp not reached"
         );
 
         for (uint256 i = 0; i < planIds.length; i++) {
@@ -96,7 +118,41 @@ contract SubscriptionManager is ISubscriptionManager {
             }
         }
 
-        lastChargeTimestamp = block.timestamp;
+        // Set the next charge timestamp to 12:00 UTC (midnight) of the following day
+        uint256 currentTimestamp = block.timestamp;
+
+        (
+            uint256 currentYear,
+            uint256 currentMonth,
+            uint256 currentDay
+        ) = DateTimeLibrary.timestampToDate(currentTimestamp);
+
+        uint256 nextDay = currentDay + 1;
+        uint256 nextMonth = currentMonth;
+        uint256 nextYear = currentYear;
+
+        // if next day is in the next month
+        if (
+            nextDay > DateTimeLibrary._getDaysInMonth(currentYear, currentMonth)
+        ) {
+            nextDay = 1;
+            nextMonth += 1;
+
+            // if next month is in the next year
+            if (nextMonth > 12) {
+                nextMonth = 1;
+                nextYear += 1;
+            }
+        }
+
+        nextChargeTimestamp = DateTimeLibrary.timestampFromDateTime(
+            nextYear,
+            nextMonth,
+            nextDay,
+            0,
+            0,
+            0
+        );
     }
 
     function chargeExpiredSubscriptionsForPlan(uint256 planId) internal {
@@ -120,7 +176,8 @@ contract SubscriptionManager is ISubscriptionManager {
                     emit SubscriptionFeePaid(
                         subscriber,
                         planId,
-                        subscriptionFeeWei
+                        subscriptionFeeWei,
+                        block.timestamp
                     );
                     emit NextPaymentTimestampUpdated(
                         subscriber,
@@ -128,7 +185,12 @@ contract SubscriptionManager is ISubscriptionManager {
                         subscription.nextPaymentTimestamp
                     );
                 } else {
-                    emit PaymentFailed(subscriber, planId, subscriptionFeeWei);
+                    emit PaymentFailed(
+                        subscriber,
+                        planId,
+                        subscriptionFeeWei,
+                        block.timestamp
+                    );
                 }
             }
         }
@@ -289,7 +351,8 @@ contract SubscriptionManager is ISubscriptionManager {
                         emit SubscriptionFeePaid(
                             msg.sender,
                             planId,
-                            subscriptionFeeWei
+                            subscriptionFeeWei,
+                            block.timestamp
                         );
                         subscription
                             .nextPaymentTimestamp = getNextMonthSameDay();
@@ -301,7 +364,7 @@ contract SubscriptionManager is ISubscriptionManager {
                     } else {
                         // Case 2: Resuming the same plan within the plan expiration time
                         subscription.isActive = true;
-                        emit Subscribed(msg.sender, planId);
+                        emit Subscribed(msg.sender, planId, block.timestamp);
                     }
                     planSubscribers[planId].push(msg.sender);
                     return;
@@ -316,7 +379,8 @@ contract SubscriptionManager is ISubscriptionManager {
                     emit SubscriptionFeePaid(
                         msg.sender,
                         planId,
-                        subscriptionFeeWei
+                        subscriptionFeeWei,
+                        block.timestamp
                     );
                     subscription.nextPaymentTimestamp = getNextMonthSameDay();
                     emit NextPaymentTimestampUpdated(
@@ -325,7 +389,7 @@ contract SubscriptionManager is ISubscriptionManager {
                         subscription.nextPaymentTimestamp
                     );
                 } else {
-                    // Case 4: Buying a different plan within the plan expiration date ( charge/refund fee for remaining days )
+                    // Case 4: Buying a different plan within the plan expiration date
                     uint256 currentPlanFeeWei = convertUSDtoETH(
                         plans[currentPlanId].feeUSD
                     );
@@ -337,7 +401,7 @@ contract SubscriptionManager is ISubscriptionManager {
                         .nextPaymentTimestamp - block.timestamp;
                     uint256 remainingDays = remainingSeconds / 86400; // as 86400 seconds in a day
 
-                    // calculating refund/charge for remaining days in the subscription period
+                    // calculating refund or charge based on upgrade/downgrade for remaining days in the subscription period
                     uint256 currentPlanFeePerDay = currentPlanFeeWei /
                         DateTimeLibrary._getDaysInMonth(
                             DateTimeLibrary.getYear(
@@ -369,18 +433,23 @@ contract SubscriptionManager is ISubscriptionManager {
                     } else if (currentPlanRemainingFee > newPlanRemainingFee) {
                         uint256 refundAmountWei = currentPlanRemainingFee -
                             newPlanRemainingFee;
-                        refundSubscriber(msg.sender, refundAmountWei);
+                        _refundSubscriber(msg.sender, refundAmountWei);
                     }
                 }
 
+                emit Unsubscribed(msg.sender, currentPlanId, block.timestamp);
                 removeSubscriber(currentPlanId, msg.sender);
-                emit Unsubscribed(msg.sender, currentPlanId);
             }
         } else {
             // Case 5: Buying a new subscription plan (new user)
             uint256 subscriptionFeeWei = convertUSDtoETH(plans[planId].feeUSD);
             chargeWallet(msg.sender, subscriptionFeeWei);
-            emit SubscriptionFeePaid(msg.sender, planId, subscriptionFeeWei);
+            emit SubscriptionFeePaid(
+                msg.sender,
+                planId,
+                subscriptionFeeWei,
+                block.timestamp
+            );
             subscription.nextPaymentTimestamp = getNextMonthSameDay();
             emit NextPaymentTimestampUpdated(
                 msg.sender,
@@ -392,7 +461,7 @@ contract SubscriptionManager is ISubscriptionManager {
         subscription.planId = planId;
         subscription.isActive = true;
         planSubscribers[planId].push(msg.sender);
-        emit Subscribed(msg.sender, planId);
+        emit Subscribed(msg.sender, planId, block.timestamp);
     }
 
     function unsubscribe() public {
@@ -402,8 +471,8 @@ contract SubscriptionManager is ISubscriptionManager {
         if (!plans[currentPlanId].exists) revert InvalidPlan();
 
         subscription.isActive = false;
+        emit Unsubscribed(msg.sender, currentPlanId, block.timestamp);
         removeSubscriber(currentPlanId, msg.sender);
-        emit Unsubscribed(msg.sender, currentPlanId);
     }
 
     function getNextMonthSameDay() internal view returns (uint256) {
@@ -422,7 +491,7 @@ contract SubscriptionManager is ISubscriptionManager {
             day = daysInNextMonth;
         }
 
-        // calculated as next month utc midnight
+        // Set the next charge timestamp to next month 12:00 UTC (midnight)
         return DateTimeLibrary.timestampFromDateTime(year, month, day, 0, 0, 0);
     }
 
@@ -446,12 +515,29 @@ contract SubscriptionManager is ISubscriptionManager {
         }
     }
 
-    function refundSubscriber(address subscriber, uint256 amount) internal {
+    function _refundSubscriber(address subscriber, uint256 amount) internal {
         if (address(this).balance < amount) {
             revert InsufficientBalance();
         }
         (bool success, ) = payable(subscriber).call{value: amount}("");
         require(success, "Refund failed");
+
+        emit SubscriberRefunded(
+            subscriber,
+            subscriptions[subscriber].planId,
+            amount,
+            block.timestamp
+        );
+    }
+
+    function refundSubscriber(
+        address subscriber,
+        uint256 refundAmount
+    ) external onlyOwner {
+        if (!plans[subscriptions[subscriber].planId].exists)
+            revert InvalidPlan();
+
+        _refundSubscriber(subscriber, refundAmount);
     }
 
     function removeSubscriber(uint256 planId, address subscriber) internal {

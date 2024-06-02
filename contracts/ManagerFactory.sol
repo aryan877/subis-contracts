@@ -11,7 +11,11 @@ import "@matterlabs/zksync-contracts/l2/system-contracts/libraries/SystemContrac
  */
 contract ManagerFactory {
     // Event to notify when a new SubscriptionManager is deployed
-    event ManagerDeployed(address indexed owner, address indexed manager);
+    event ManagerDeployed(
+        address indexed owner,
+        address indexed manager,
+        string name
+    );
 
     bytes32 public managerBytecodeHash;
     mapping(address => address[]) public ownerToManagers;
@@ -29,14 +33,20 @@ contract ManagerFactory {
      * @param salt The salt value for creating the contract address.
      * @param owner The owner of the SubscriptionManager contract.
      * @param priceFeedAddress The address of the Chainlink price feed contract.
+     * @param name The name of the SubscriptionManager contract.
      * @return managerAddress The address of the deployed SubscriptionManager contract.
      */
     function deployManager(
         bytes32 salt,
         address owner,
-        address priceFeedAddress
+        address priceFeedAddress,
+        string calldata name
     ) external returns (address managerAddress) {
-        bytes memory constructorArgs = abi.encode(owner, priceFeedAddress);
+        bytes memory constructorArgs = abi.encode(
+            owner,
+            priceFeedAddress,
+            name
+        );
 
         (bool success, bytes memory returnData) = SystemContractsCaller
             .systemCallWithReturndata(
@@ -53,7 +63,7 @@ contract ManagerFactory {
         (managerAddress) = abi.decode(returnData, (address));
 
         ownerToManagers[owner].push(managerAddress);
-        emit ManagerDeployed(owner, managerAddress);
+        emit ManagerDeployed(owner, managerAddress, name);
     }
 
     /**

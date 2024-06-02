@@ -24,7 +24,13 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   console.log("Subscription Manager owner:", owner);
 
   const salt = ethers.constants.HashZero;
-  const tx = await managerFactory.deployManager(salt, owner, priceFeedAddress);
+  const managerName = "My Subscription Manager"; // manager name
+  const tx = await managerFactory.deployManager(
+    salt,
+    owner,
+    priceFeedAddress,
+    managerName
+  );
   await tx.wait();
 
   const abiCoder = new ethers.utils.AbiCoder();
@@ -32,7 +38,10 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     factoryAddress,
     await managerFactory.managerBytecodeHash(),
     salt,
-    abiCoder.encode(["address", "address"], [owner, priceFeedAddress])
+    abiCoder.encode(
+      ["address", "address", "string"],
+      [owner, priceFeedAddress, managerName]
+    )
   );
   console.log("SubscriptionManager deployed at:", subscriptionManagerAddress);
 
@@ -53,7 +62,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     await hre.run("verify:verify", {
       address: subscriptionManagerAddress,
       contract: contractFullyQualifiedName,
-      constructorArguments: [owner, priceFeedAddress],
+      constructorArguments: [owner, priceFeedAddress, managerName],
       bytecode: (
         await hre.artifacts.readArtifact("SubscriptionManager")
       ).bytecode,

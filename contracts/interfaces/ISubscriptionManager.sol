@@ -51,4 +51,9 @@ interface ISubscriptionManager {
     function getTotalSubscribers() external view returns (uint256);
 
     function getSubscriberCount(uint256 planId) external view returns (uint256);
+
+    function refundSubscriber(
+        address subscriber,
+        uint256 refundAmount
+    ) external;
 }
