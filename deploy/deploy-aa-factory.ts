@@ -30,6 +30,11 @@ export default async function (hre: HardhatRuntimeEnvironment) {
     filePath: string,
     prependNextPublic: boolean = false
   ) => {
+    // Check if .env file exists, create if it doesn't
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, "");
+    }
+
     const envConfig = dotenv.parse(fs.readFileSync(filePath));
     const key = prependNextPublic
       ? "NEXT_PUBLIC_AA_FACTORY_ADDRESS"
@@ -42,8 +47,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
         .join("\n")
     );
   };
-
-  // Update .env in backend root
+  // Update .env in contracts root
   const backendEnvPath = path.resolve(__dirname, "..", ".env");
   updateEnvFile(backendEnvPath);
 
