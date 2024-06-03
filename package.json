@@ -37,7 +37,7 @@
     "test:fund-paymaster": "hardhat deploy-zksync --script test-fund-paymaster.ts",
     "copy-artifacts-to-app": "cp -r -f artifacts-zk ../app/",
     "copy-artifacts-to-cron": "cp -r -f artifacts-zk ../cron/",
-    "copy-artifacts-to-example": "cp -r -f artifacts-zk ../subscription-api-app-example/",
+    "copy-artifacts-to-example": "cp -r -f artifacts-zk ../subis-subscription-example-nextjs/",
     "deploy": "yarn deploy:aa-factory && yarn deploy:manager-factory && yarn copy-artifacts-to-app && yarn copy-artifacts-to-cron && yarn copy-artifacts-to-example"
   },
   "devDependencies": {
