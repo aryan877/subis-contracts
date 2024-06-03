@@ -12,9 +12,6 @@ const zkSyncTestnet = {
   ethNetwork: "sepolia", // Can also be the RPC URL of the network (e.g. `https://goerli.infura.io/v3/<API_KEY>`)
   zksync: true,
   verifyURL: "https://explorer.sepolia.era.zksync.dev/contract_verification",
-  // url: "http://127.0.0.1:8011",
-  // ethNetwork: "sepolia",
-  // zksync: true,
 };
 
 const config: HardhatUserConfig = {
