@@ -37,8 +37,7 @@
     "test:fund-paymaster": "hardhat deploy-zksync --script test-fund-paymaster.ts",
     "copy-artifacts-to-nexjs-app": "cp -r -f artifacts-zk ../app/",
     "copy-artifacts-to-cron": "cp -r -f artifacts-zk ../cron/",
-    "deploy-all": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn deploy:subscription-manager && yarn deploy:deploy-paymaster && yarn deploy:subscription-account && yarn copy-artifacts-to-nexjs-app && yarn copy-artifacts-to-cron",
-    "deploy-factory": "yarn hardhat:compile && yarn deploy:aa-factory && yarn deploy:manager-factory && yarn copy-artifacts-to-nexjs-app && yarn copy-artifacts-to-cron"
+    "deploy": "yarn deploy:aa-factory && yarn deploy:manager-factory && yarn copy-artifacts-to-nexjs-app && yarn copy-artifacts-to-cron"
   },
   "devDependencies": {
     "@matterlabs/hardhat-zksync-chai-matchers": "^0.1.2",
